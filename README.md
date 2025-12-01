@@ -1,2 +1,8 @@
-# 241e-codebase-vc
-A codebase written with Vexcode. this codebase was developed for the V5RC competition and was used by V5RC 241E during the Spin-Up 2022-2023, Over Under 2023-2024 and High Stakes 2024-2025
+BBR1's 15" Code for WPI skills runs
+Based on 241e-codebase-vc
+
+# Robot Specs
+66W 450 RPM Drive
+22W 600 RPM Front Side rollers
+22W 200/600 RPM Indexers
+39 Point Skills Auto
