@@ -1,12 +1,13 @@
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*    Program:      241E Codebase (Vexcode)                                   */
+/*    Program:      BBR1 15 WPI                                               */
 /*    Module:       main.cpp                                                  */
 /*    Author:       Andrew Bobay                                              */
 /*    Team:         BBR1                                                      */
 /*    Created:      Sep. 30th 2025, 2:30 PM                                   */
 /*    Modified:     Oct. 23rd 2025, 07:00 PM                                  */
-/*    Description:  V5 project                                                */
+/*    Description:  Janky thrown together code for                            */
+/*                   our first skills run at WPI                              */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -18,32 +19,46 @@ controller Controller = controller(primary);
 
 // A global instance of competition
 competition Competition;
-motor drive_fr = motor(PORT1, ratio6_1, false);
-motor drive_br = motor(PORT2, ratio6_1, false);
-motor drive_fl = motor(PORT4, ratio6_1, true);
-motor drive_bl = motor(PORT5, ratio6_1, true);
+motor drive_fr = motor(PORT5, ratio6_1, false);
+motor drive_br = motor(PORT3, ratio6_1, false);
+motor drive_tr = motor(PORT2, ratio6_1, true);
+motor drive_fl = motor(PORT6, ratio6_1, true);
+motor drive_bl = motor(PORT4, ratio6_1, true);
+motor drive_tl = motor(PORT1, ratio6_1, false);
 
-motor_group drive_right = motor_group(drive_fr, drive_br);
-motor_group drive_left = motor_group(drive_fl, drive_bl);
+
+motor_group drive_right = motor_group(drive_fr, drive_br, drive_tr);
+motor_group drive_left = motor_group(drive_fl, drive_bl, drive_tl);
 
 inertial IMU = inertial(PORT7);
 // Included below are example values, CHANGE THEM FOR YOUR ROBOT
 double wheel_travel = 260; // Given by vex
-double track_width = 285.75; // Distance between the 2 drive sides
+double track_width = 298.45; // Distance between the 2 drive sides
 double wheel_base = 177.8; // Distance between the front and back axels
 double wheel_c = 10.21; // Circumfrence of wheels
 double gear_ratio = (36/48); // (Motorin/MotorOut)
 smartdrive Drivetrain = smartdrive(drive_left, drive_right, IMU, wheel_travel, track_width, wheel_base, mm, gear_ratio);
 
 
-motor smartmtr = motor(PORT11, ratio6_1, false);
-pneumatics piston = pneumatics(Brain.ThreeWirePort.A);
+motor intake_left = motor(PORT18, ratio6_1, false);
+motor intake_right = motor(PORT11, ratio6_1, true);
+motor outtake_lower = motor(PORT19, ratio18_1, true);
+motor outtake_upper = motor(PORT20, ratio6_1, true); 
+motor_group intake = motor_group(intake_left, intake_right, outtake_lower, outtake_upper);
+
+
+pneumatics liftR = pneumatics(Brain.ThreeWirePort.G);
+pneumatics liftL = pneumatics(Brain.ThreeWirePort.F);
+
+pneumatics door = pneumatics(Brain.ThreeWirePort.H);
+
 
 // define control booleans for driver control here
 bool drive_right_bool = true;
 bool drive_left_bool = true;
-bool piston_toggle = false;
-bool smartmtr_bool = true;
+bool lift_toggle_bool = true;
+bool door_toggle_bool = false;
+bool intake_control_bool = true;
 
 /*---------------------------------------------------------------------------*/
 /*                          Pre-Autonomous Functions                         */
@@ -71,6 +86,7 @@ Brain.Screen.print("Inertial Calibration Complete");
 
 // Set Velocity and clear encoders 
 Drivetrain.setDriveVelocity(100, percent);
+intake.setVelocity(100,percent);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -93,7 +109,29 @@ Drivetrain.setDriveVelocity(100, percent);
 
 void autonomous(void) {
   // ..........................................................................
-  // Insert autonomous user code here.
+  intake.spin(reverse);
+  Drivetrain.stop(hold);
+  
+  /* Skills Planning 
+  1R - 0B
+  drive to match loader
+  4R - 3B
+  drive to goal
+  dump
+  0R - 0B
+  Grab 2 blocks on wall
+  0R - 2B
+  drive to goal
+  dump
+  0R - 0B
+  Drive to park Zone
+  Clear Park zone
+  Park
+
+  39 Solo
+  
+  */
+  
   // ..........................................................................
 }
 
@@ -116,55 +154,72 @@ void usercontrol(void) {
     
     // ........................................................................
 
+    int direction = fabs(Controller.Axis1.position())/Controller.Axis1.position();
     // Example Arcade stick control, I reccomend tuning some of these values to fit your driving style
-    int drivetrain_right_speed = (Controller.Axis3.position()) - Controller.Axis1.position();
-    int drivetrain_left_speed = (Controller.Axis3.position()) + Controller.Axis1.position();
+    
+      int drivetrainRightSideSpeed = (Controller.Axis3.position() - (pow(1.047,fabs(Controller.Axis1.position()))*direction));
+      int drivetrainLeftSideSpeed = (Controller.Axis3.position() + (pow(1.047, fabs(Controller.Axis1.position()))*direction));
 
-    if (fabs(drivetrain_left_speed) < 5){
-      if (drive_left_bool){
-        drive_left.stop();
-        drive_left_bool = false;
+
+      if (drivetrainLeftSideSpeed < 5 && drivetrainLeftSideSpeed > -5) {
+        if (drive_left_bool) {
+          drive_left.stop();
+          drive_left_bool = false;
+        }
       } else {
         drive_left_bool = true;
       }
-    }
-    if (fabs(drivetrain_right_speed) < 5){
-      if (drive_right_bool){
-        drive_right.stop();
-        drive_right_bool = false;
+      if (drivetrainRightSideSpeed < 5 && drivetrainRightSideSpeed > -5) {
+        if (drive_right_bool) {
+          drive_right.stop();
+          drive_right_bool = false;
+        }
       } else {
         drive_right_bool = true;
       }
-    }
+
       if (drive_left_bool) {
-        drive_left.setVelocity(drivetrain_left_speed, percent);
+        drive_left.setVelocity(drivetrainLeftSideSpeed, percent);
         drive_left.spin(forward);
       }
 
       if (drive_right_bool) {
-        drive_right.setVelocity(drivetrain_right_speed, percent);
+        drive_right.setVelocity(drivetrainRightSideSpeed, percent);
         drive_right.spin(forward);
       }
 
-      // Motor Contoller
+      // Intake Contoller
       if (Controller.ButtonR1.pressing()) {
-        smartmtr.spin(reverse);
-        smartmtr_bool = false;
+        intake.spin(fwd);
+        intake_control_bool = false;
       } else if (Controller.ButtonR2.pressing()) {
-        smartmtr.spin(fwd);
-        smartmtr_bool = false;
-      } else if (!smartmtr_bool) {
-        smartmtr.stop();
-        smartmtr_bool = true;
+        intake.spin(reverse);
+        intake_control_bool = false;
+      } else if (!intake_control_bool) {
+        intake.stop();
+        intake_control_bool = true;
       }
+
+     // Intake Contoller
+      if (Controller.ButtonL1.pressing()) {
+        liftL.open();
+        liftR.open();
+        lift_toggle_bool = false;
+        } else if (!lift_toggle_bool) {
+          liftR.close();
+          liftL.close();
+          lift_toggle_bool = true;
+     
+      }
+
       // Basic Toggle Controller
-      if (Controller.ButtonL2.pressing()) {
-        piston_toggle = !piston_toggle;
-        while (Controller.ButtonL2.pressing()){}
-          if (piston_toggle) {
-            piston.open();
+      if (Controller.ButtonL1.pressing()) {
+        door_toggle_bool = !door_toggle_bool;
+        while (Controller.ButtonL1.pressing()){}
+          if (door_toggle_bool) {
+            door.open();
           } else {
-            piston.close();
+            door.close();
           }
         }
 
